@@ -2,198 +2,132 @@
 
 ## 1. Descripción
 
-El Citizen Query Service es responsable de exponer endpoints públicos de solo lectura relacionados con información del ciudadano, como el puesto de votación y el estado del voto.
+Microservicio de consultas del sistema ciudadano encargado de exponer
+información pública de solo lectura, como el puesto de votación y el
+estado del voto.
 
-El servicio sigue un enfoque CQRS (lado de lectura) y utiliza Redis como capa de cache para optimizar el rendimiento mediante el patrón cache-aside.
+Este servicio forma parte del lado de lectura bajo el enfoque CQRS y
+está optimizado para alto rendimiento mediante el uso de Redis como capa
+de cache.
 
----
+------------------------------------------------------------------------
 
 ## 2. Tecnologías
 
-* Java 21
-* Spring Boot 3.x
-* Spring Web
-* Spring Data JPA
-* PostgreSQL
-* Redis
-* Springdoc OpenAPI (Swagger)
-* Maven
+-   Java 21
+-   Spring Boot 3.x
+-   Spring Web
+-   Spring Data JPA
+-   PostgreSQL
+-   Redis
+-   Springdoc OpenAPI (Swagger)
+-   Maven
 
----
+------------------------------------------------------------------------
 
 ## 3. Arquitectura
 
-El servicio está diseñado como un microservicio de solo lectura dentro del sistema ciudadano.
+Arquitectura por capas:
 
-Sigue una arquitectura por capas:
+-   Controller: Exposición de endpoints REST
+-   Service: Lógica de negocio y gestión de cache
+-   Repository: Acceso a datos mediante JPA
+-   Cache Adapter: Integración con Redis
+-   Mapper: Transformación de entidades a DTOs
+-   Exception Layer: Manejo global de errores
 
-* Controller: Manejo de solicitudes HTTP
-* Service: Lógica de negocio y manejo de cache
-* Repository: Acceso a datos mediante JPA
-* Cache Adapter: Integración con Redis
-* Mapper: Transformación de entidades a DTOs
+------------------------------------------------------------------------
 
-### Estrategia de cache
+## 4. Estrategia de Cache
 
 Se implementa el patrón cache-aside:
 
-1. Se intenta obtener la información desde Redis
-2. Si no existe (cache miss), se consulta la base de datos
-3. Se almacena el resultado en cache con TTL
+1.  Se intenta obtener la información desde Redis
+2.  Si no existe (cache miss), se consulta la base de datos
+3.  Se almacena el resultado en cache
+4.  Las siguientes consultas se resuelven desde cache
 
----
+------------------------------------------------------------------------
 
-## 4. Versionamiento de API
+## 5. Versionamiento de API
 
-Todos los endpoints están versionados bajo:
+/api/v1/\*
 
-```
-/api/v1/*
-```
+------------------------------------------------------------------------
 
----
+## 6. Variables de entorno
 
-## 5. Variables de entorno
-
-Crear un archivo `.env` en la raíz del proyecto:
-
-```bash
-DB_URL=jdbc:postgresql://localhost:5432/citizen_db
-DB_USER=citizen_user
+DB_URL=jdbc:postgresql://localhost:5432/citizen_db\
+DB_USER=citizen_user\
 DB_PASSWORD=123456
 
-REDIS_HOST=localhost
+REDIS_HOST=localhost\
 REDIS_PORT=6379
 
 PORT=8081
-```
 
----
+------------------------------------------------------------------------
 
-## 6. Configuración de la base de datos (PostgreSQL)
+## 7. Configuración PostgreSQL
 
-### Crear base de datos
-
-```sql
 CREATE DATABASE citizen_db;
-```
 
-### Crear usuario
-
-```sql
 CREATE USER citizen_user WITH PASSWORD '123456';
-```
 
-### Asignar permisos
-
-```sql
 GRANT ALL PRIVILEGES ON DATABASE citizen_db TO citizen_user;
-```
 
-### Permisos sobre esquema
+`\c `citizen_db
 
-```sql
-\c citizen_db
 GRANT ALL ON SCHEMA public TO citizen_user;
-```
 
----
+------------------------------------------------------------------------
 
-## 7. Configuración de Redis
+## 8. Configuración Redis
 
-Instalar Redis:
-
-```bash
-sudo apt update
+sudo apt update\
 sudo apt install redis-server
-```
 
-Iniciar servicio:
-
-```bash
-sudo systemctl start redis-server
+sudo systemctl start redis-server\
 sudo systemctl enable redis-server
-```
 
-Verificar funcionamiento:
-
-```bash
 redis-cli ping
-```
 
-Respuesta esperada:
+------------------------------------------------------------------------
 
-```
-PONG
-```
+## 9. Ejecución
 
----
+export \$(grep -v '\^#' .env \| xargs)
 
-## 8. Ejecución del proyecto
-
-Cargar variables de entorno:
-
-```bash
-export $(grep -v '^#' .env | xargs)
-```
-
-Ejecutar la aplicación:
-
-```bash
 mvn spring-boot:run
-```
 
----
+------------------------------------------------------------------------
 
-## 9. Documentación API (Swagger)
+## 10. Swagger
 
-Disponible en:
-
-```
 http://localhost:8081/swagger-ui.html
-```
 
----
+------------------------------------------------------------------------
 
-## 10. Endpoint principal
+## 11. Endpoint
 
-### Consultar puesto de votación
+GET /api/v1/citizen/polling-station?document=1001
 
-```http
-GET /api/v1/citizen/polling-station?document=123
-```
+------------------------------------------------------------------------
 
-### Respuesta
+## 12. Respuesta
 
-```json
-{
-  "document": "123",
-  "pollingStation": "Station A",
-  "status": "VOTED"
-}
-```
+{ "document": "1001", "pollingStation": "Mesa 01 - Bogotá", "status":
+"NOT_VOTED" }
 
----
+------------------------------------------------------------------------
 
-## 11. Base de datos
+## 13. Observabilidad
 
-El servicio utiliza una base de datos PostgreSQL como modelo de lectura.
+Logging estructurado para cache hit, cache miss y persistencia en cache.
 
-Tabla principal:
+------------------------------------------------------------------------
 
-* voter
+## 14. Estado
 
----
-
-## 12. Consideraciones
-
-* El servicio es de solo lectura
-* No requiere autenticación
-* Los datos provienen de sistemas externos (sincronización)
-* Está optimizado para alto volumen de consultas
-
----
-
-## 13. Estado del proyecto
-
-Implementación inicial del servicio de consultas del sistema ciudadano, con integración a base de datos y cache en Redis.
+Servicio funcional con API REST, PostgreSQL, Redis, validación, manejo
+de errores y documentación Swagger.
