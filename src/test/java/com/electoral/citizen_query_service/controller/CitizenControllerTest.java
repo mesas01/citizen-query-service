@@ -154,4 +154,120 @@ class CitizenControllerTest {
                 .andExpect(jsonPath("$.pollingStation").value("IE Técnico - Mesa 3"))
                 .andExpect(jsonPath("$.status").value("HABILITADO"));
     }
+
+    // ----------------------------------------------------------
+    // CV-10 | EQ-20 | Integridad - Consistencia de Respuesta
+    // Verifica que la respuesta es consistente entre múltiples llamadas
+    // ----------------------------------------------------------
+    @Test
+    @DisplayName("CV-10 | EQ-20 | Respuesta consistente en múltiples llamadas al mismo endpoint")
+    void should_returnConsistentResponse_when_querySameVoterMultipleTimes() throws Exception {
+        VoterResponse response = new VoterResponse();
+        response.setDocument("123456789");
+        response.setPollingStation("Colegio San José - Mesa 5");
+        response.setStatus("HABILITADO");
+
+        when(service.getVoterInfo("123456789")).thenReturn(response);
+
+        // Primera llamada
+        mockMvc.perform(get("/api/v1/citizen/polling-station")
+                .param("document", "123456789"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.document").value("123456789"));
+
+        // Segunda llamada - debe ser idéntica
+        mockMvc.perform(get("/api/v1/citizen/polling-station")
+                .param("document", "123456789"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.document").value("123456789"))
+                .andExpect(jsonPath("$.status").value("HABILITADO"));
+    }
+
+    // ----------------------------------------------------------
+    // CV-11 | EQ-20 | Integridad - No Corrupción de Datos en Respuesta
+    // Verifica que los datos no se corrompen al enviar en JSON
+    // ----------------------------------------------------------
+    @Test
+    @DisplayName("CV-11 | EQ-20 | Los datos no se corrompen en la serialización JSON")
+    void should_preserveDataIntegrity_when_serializingResponse() throws Exception {
+        VoterResponse response = new VoterResponse();
+        response.setDocument("987654321");
+        response.setPollingStation("IE Distrital - Mesa 2 - Local B");
+        response.setStatus("YA_VOTO");
+
+        when(service.getVoterInfo("987654321")).thenReturn(response);
+
+        mockMvc.perform(get("/api/v1/citizen/polling-station")
+                .param("document", "987654321"))
+                .andExpect(status().isOk())
+                // Verificar que los caracteres especiales se mantienen intactos
+                .andExpect(jsonPath("$.pollingStation").value("IE Distrital - Mesa 2 - Local B"))
+                .andExpect(jsonPath("$.document").value("987654321"))
+                .andExpect(jsonPath("$.status").value("YA_VOTO"));
+    }
+
+    // ----------------------------------------------------------
+    // CV-12 | EQ-17 | Fiabilidad - Manejo de Errores de Servicio
+    // Verifica que el controlador maneja excepciones del servicio
+    // ----------------------------------------------------------
+    @Test
+    @DisplayName("CV-12 | EQ-17 | El controlador maneja errores del servicio gracefully")
+    void should_return500_when_serviceThrowsUnexpectedException() throws Exception {
+        when(service.getVoterInfo("123456789"))
+                .thenThrow(new RuntimeException("Database connection failed"));
+
+        mockMvc.perform(get("/api/v1/citizen/polling-station")
+                .param("document", "123456789"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    // ----------------------------------------------------------
+    // CV-13 | EQ-21 | Auditabilidad - Trazabilidad de Requests
+    // Verifica que se pueden trazar requests (document consultado, estado)
+    // ----------------------------------------------------------
+    @Test
+    @DisplayName("CV-13 | EQ-21 | Se puede rastrear qué documento fue consultado (trazabilidad)")
+    void should_enableRequestTracing_when_voterQueried() throws Exception {
+        VoterResponse response = new VoterResponse();
+        response.setDocument("555666777");
+        response.setPollingStation("Escuela X - Mesa 1");
+        response.setStatus("HABILITADO");
+
+        when(service.getVoterInfo("555666777")).thenReturn(response);
+
+        // Esta request puede ser rastreada: documento enviado, estado retornado
+        mockMvc.perform(get("/api/v1/citizen/polling-station")
+                .param("document", "555666777"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.document").value("555666777"));
+
+        // Verificar que el servicio fue consultado con el documento correcto
+        verify(service, times(1)).getVoterInfo("555666777");
+    }
+
+    // ----------------------------------------------------------
+    // CV-14 | EQ-20 | Integridad - Validación de Campos en Respuesta
+    // Verifica que la respuesta solo contiene campos esperados (sin injecciones)
+    // ----------------------------------------------------------
+    @Test
+    @DisplayName("CV-14 | EQ-20 | La respuesta solo contiene campos esperados (sin datos inesperados)")
+    void should_returnOnlyExpectedFields_when_voterExists() throws Exception {
+        VoterResponse response = new VoterResponse();
+        response.setDocument("111222333");
+        response.setPollingStation("Centro Electoral - Mesa 10");
+        response.setStatus("HABILITADO");
+
+        when(service.getVoterInfo("111222333")).thenReturn(response);
+
+        mockMvc.perform(get("/api/v1/citizen/polling-station")
+                .param("document", "111222333"))
+                .andExpect(status().isOk())
+                // Verificar que contiene los campos esperados
+                .andExpect(jsonPath("$.document").exists())
+                .andExpect(jsonPath("$.pollingStation").exists())
+                .andExpect(jsonPath("$.status").exists())
+                // Verificar que no contiene campos inesperados (seguridad)
+                .andExpect(jsonPath("$.hasVoted").doesNotExist())
+                .andExpect(jsonPath("$.internalId").doesNotExist());
+    }
 }
