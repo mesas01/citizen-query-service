@@ -1,25 +1,23 @@
-FROM maven:3.9.9-eclipse-temurin-21 AS builder
+# Build stage
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /app
 
-# Cache dependencies
 COPY pom.xml .
-RUN mvn dependency:go-offline
+RUN mvn dependency:go-offline -B
 
-# Copy source
 COPY src ./src
 
-# Build the app
-RUN mvn clean package -DskipTests
+RUN mvn -B clean package -DskipTests
 
-FROM eclipse-temurin:21-jdk-jammy
-
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# Copy built jar
-COPY --from=builder /app/target/*.jar app.jar
+RUN addgroup -S spring && adduser -S spring -G spring
 
-EXPOSE 8080
+COPY --from=builder /app/target/citizen-query-service-*.jar app.jar
 
-# Run the app
+USER spring:spring
+EXPOSE 8081
+
 ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-Xms128m", "-Xmx2G", "-jar", "app.jar"]
