@@ -1,5 +1,11 @@
 package com.electoral.citizen_query_service.mapper;
 
+// ============================================================
+//  TIPO: Unitaria — VoterMapper
+//  Atributos: Funcionalidad (EQ-2) | Seguridad (EQ-20)
+//             Mantenibilidad (EQ-27)
+// ============================================================
+
 import com.electoral.citizen_query_service.dto.VoterResponse;
 import com.electoral.citizen_query_service.entity.Voter;
 
@@ -19,11 +25,7 @@ class VoterMapperTest {
         mapper = new VoterMapper();
     }
 
-    // ----------------------------------------------------------
-    // VM-01 | EQ-2 | Funcional - Corrección
-    // Verifica que el mapper convierte correctamente
-    // todos los campos de Voter a VoterResponse
-    // ----------------------------------------------------------
+    // VM-01 | EQ-2 | Mapea todos los campos correctamente
     @Test
     @DisplayName("VM-01 | EQ-2 | Mapea todos los campos de Voter a VoterResponse correctamente")
     void should_mapAllFields_when_voterIsValid() {
@@ -37,74 +39,55 @@ class VoterMapperTest {
         assertNotNull(response);
         assertEquals("123456789", response.getDocument());
         assertEquals("Colegio San José - Mesa 5", response.getPollingStation());
-        assertNotNull(response.getStatus(),
-                "El status no debe ser nulo tras el mapeo");
+        assertNotNull(response.getStatus());
     }
 
-    // ----------------------------------------------------------
-    // VM-02 | EQ-20 | Seguridad - Integridad
-    // Verifica que el status HABILITADO se asigna correctamente
-    // cuando el votante no ha votado
-    // ----------------------------------------------------------
+    // VM-02 | EQ-20 | hasVoted=false produce HABILITADO
     @Test
-    @DisplayName("VM-02 | EQ-20 | Asigna status HABILITADO cuando el votante no ha votado")
+    @DisplayName("VM-02 | EQ-20 | Asigna status HABILITADO cuando hasVoted es false")
     void should_setHabilitadoStatus_when_hasVotedIsFalse() {
         Voter voter = new Voter();
         voter.setDocument("123456789");
-        voter.setPollingStation("Colegio San José - Mesa 5");
+        voter.setPollingStation("Mesa 1");
         voter.setHasVoted(false);
 
         VoterResponse response = mapper.toResponse(voter);
 
-        assertEquals("HABILITADO", response.getStatus(),
-                "El votante que no ha votado debe tener status HABILITADO");
+        assertEquals("HABILITADO", response.getStatus());
     }
 
-    // ----------------------------------------------------------
-    // VM-03 | EQ-20 | Seguridad - Integridad
-    // Verifica que el status YA_VOTO se asigna correctamente
-    // para prevenir doble habilitación
-    // ----------------------------------------------------------
+    // VM-03 | EQ-20 | hasVoted=true produce YA_VOTO
     @Test
-    @DisplayName("VM-03 | EQ-20 | Asigna status YA_VOTO cuando el votante ya ejerció su voto")
+    @DisplayName("VM-03 | EQ-20 | Asigna status YA_VOTO cuando hasVoted es true")
     void should_setYaVotoStatus_when_hasVotedIsTrue() {
         Voter voter = new Voter();
         voter.setDocument("123456789");
-        voter.setPollingStation("Colegio San José - Mesa 5");
+        voter.setPollingStation("Mesa 1");
         voter.setHasVoted(true);
 
         VoterResponse response = mapper.toResponse(voter);
 
-        assertEquals("YA_VOTO", response.getStatus(),
-                "El votante que ya votó debe tener status YA_VOTO");
+        assertEquals("YA_VOTO", response.getStatus());
     }
 
-    // ----------------------------------------------------------
-    // VM-04 | EQ-2 | Funcional - Corrección
-    // Verifica que el mapper no altera el documento original
-    // ----------------------------------------------------------
+    // VM-04 | EQ-2 | El documento no es alterado durante el mapeo
     @Test
-    @DisplayName("VM-04 | EQ-2 | El mapper no altera el documento del votante")
+    @DisplayName("VM-04 | EQ-2 | El documento no es alterado durante el mapeo")
     void should_preserveDocument_when_mapping() {
         Voter voter = new Voter();
         voter.setDocument("987654321");
-        voter.setPollingStation("IE Distrital - Mesa 2");
+        voter.setPollingStation("Mesa 2");
         voter.setHasVoted(false);
 
         VoterResponse response = mapper.toResponse(voter);
 
-        assertEquals("987654321", response.getDocument(),
-                "El documento no debe ser alterado durante el mapeo");
+        assertEquals("987654321", response.getDocument());
     }
 
-    // ----------------------------------------------------------
-    // VM-05 | EQ-27 | Mantenibilidad - Testeabilidad
-    // Verifica que el mapper es instanciable sin dependencias externas
-    // ----------------------------------------------------------
+    // VM-05 | EQ-27 | El mapper es instanciable sin dependencias externas
     @Test
-    @DisplayName("VM-05 | EQ-27 | El mapper es instanciable sin dependencias externas")
+    @DisplayName("VM-05 | EQ-27 | El mapper es instanciable y testeable sin dependencias externas")
     void should_instantiate_when_noExternalDependencies() {
-        assertNotNull(mapper,
-                "El mapper debe poder instanciarse directamente");
+        assertNotNull(mapper);
     }
 }
