@@ -35,6 +35,5 @@ public class RedisCacheAdapter {
 
     public void setFallback(String key, Object value, Throwable t) {
         log.warn("CACHE FALLBACK (SET) - key={} - {}", key, t.getMessage());
-        // no haces nada
     }
 }
