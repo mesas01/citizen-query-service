@@ -6,9 +6,9 @@ Microservicio de consultas del sistema ciudadano encargado de exponer
 información pública de solo lectura, como el puesto de votación y el
 estado del voto.
 
-Este servicio forma parte del lado de lectura bajo el enfoque CQRS y
-está optimizado para alto rendimiento mediante el uso de Redis como capa
-de cache.
+Este servicio sigue un enfoque CQRS (lado de lectura) y está optimizado
+para alto rendimiento mediante Redis como cache, incluyendo mecanismos
+de resiliencia para tolerar fallos del servicio de cache.
 
 ------------------------------------------------------------------------
 
@@ -20,6 +20,7 @@ de cache.
 -   Spring Data JPA
 -   PostgreSQL
 -   Redis
+-   Resilience4j (Circuit Breaker)
 -   Springdoc OpenAPI (Swagger)
 -   Maven
 
@@ -30,9 +31,10 @@ de cache.
 Arquitectura por capas:
 
 -   Controller: Exposición de endpoints REST
--   Service: Lógica de negocio y gestión de cache
--   Repository: Acceso a datos mediante JPA
+-   Service: Lógica de negocio y orquestación
+-   Repository: Acceso a datos con JPA
 -   Cache Adapter: Integración con Redis
+-   Circuit Breaker: Manejo de fallos en cache
 -   Mapper: Transformación de entidades a DTOs
 -   Exception Layer: Manejo global de errores
 
@@ -40,35 +42,50 @@ Arquitectura por capas:
 
 ## 4. Estrategia de Cache
 
-Se implementa el patrón cache-aside:
+Se implementa el patrón cache-aside con resiliencia:
 
 1.  Se intenta obtener la información desde Redis
-2.  Si no existe (cache miss), se consulta la base de datos
-3.  Se almacena el resultado en cache
-4.  Las siguientes consultas se resuelven desde cache
+2.  Si falla o no existe, se consulta la base de datos
+3.  Se intenta almacenar en cache
+4.  En caso de fallo de Redis, el sistema continúa funcionando usando DB
 
 ------------------------------------------------------------------------
 
-## 5. Versionamiento de API
+## 5. Resiliencia (Circuit Breaker)
+
+Se implementa Circuit Breaker con Resilience4j:
+
+-   Detecta fallos en Redis
+-   Evita llamadas repetidas a un servicio caído
+-   Permite fallback automático hacia base de datos
+-   Mejora la latencia en escenarios de fallo
+
+Estados:
+
+-   CLOSED → funcionamiento normal
+-   OPEN → Redis deshabilitado temporalmente
+-   HALF-OPEN → prueba de recuperación
+
+------------------------------------------------------------------------
+
+## 6. Versionamiento de API
 
 /api/v1/\*
 
 ------------------------------------------------------------------------
 
-## 6. Variables de entorno
+## 7. Variables de entorno
 
-DB_URL=jdbc:postgresql://localhost:5432/citizen_db\
-DB_USER=citizen_user\
+DB_URL=jdbc:postgresql://localhost:5432/citizen_db DB_USER=citizen_user
 DB_PASSWORD=123456
 
-REDIS_HOST=localhost\
-REDIS_PORT=6379
+REDIS_HOST=localhost REDIS_PORT=6379
 
 PORT=8081
 
 ------------------------------------------------------------------------
 
-## 7. Configuración PostgreSQL
+## 8. Configuración PostgreSQL
 
 CREATE DATABASE citizen_db;
 
@@ -76,25 +93,23 @@ CREATE USER citizen_user WITH PASSWORD '123456';
 
 GRANT ALL PRIVILEGES ON DATABASE citizen_db TO citizen_user;
 
-`\c `citizen_db
+`\c c`{=tex}itizen_db
 
 GRANT ALL ON SCHEMA public TO citizen_user;
 
 ------------------------------------------------------------------------
 
-## 8. Configuración Redis
+## 9. Configuración Redis
 
-sudo apt update\
-sudo apt install redis-server
+sudo apt update sudo apt install redis-server
 
-sudo systemctl start redis-server\
-sudo systemctl enable redis-server
+sudo systemctl start redis-server sudo systemctl enable redis-server
 
 redis-cli ping
 
 ------------------------------------------------------------------------
 
-## 9. Ejecución
+## 10. Ejecución
 
 export \$(grep -v '\^#' .env \| xargs)
 
@@ -102,32 +117,44 @@ mvn spring-boot:run
 
 ------------------------------------------------------------------------
 
-## 10. Swagger
+## 11. Swagger
 
 http://localhost:8081/swagger-ui.html
 
 ------------------------------------------------------------------------
 
-## 11. Endpoint
+## 12. Endpoint
 
 GET /api/v1/citizen/polling-station?document=1001
 
 ------------------------------------------------------------------------
 
-## 12. Respuesta
+## 13. Respuesta
 
 { "document": "1001", "pollingStation": "Mesa 01 - Bogotá", "status":
 "NOT_VOTED" }
 
 ------------------------------------------------------------------------
 
-## 13. Observabilidad
+## 14. Observabilidad
 
-Logging estructurado para cache hit, cache miss y persistencia en cache.
+Logging estructurado:
+
+-   CACHE HIT
+-   CACHE MISS
+-   CACHE STORE
+-   CACHE FALLBACK
+-   Circuit Breaker events (OPEN, CLOSED, HALF-OPEN)
 
 ------------------------------------------------------------------------
 
-## 14. Estado
+## 15. Estado
 
-Servicio funcional con API REST, PostgreSQL, Redis, validación, manejo
-de errores y documentación Swagger.
+Servicio funcional con:
+
+-   API REST
+-   PostgreSQL
+-   Redis
+-   Circuit Breaker (Resilience4j)
+-   Tolerancia a fallos
+-   Documentación Swagger
