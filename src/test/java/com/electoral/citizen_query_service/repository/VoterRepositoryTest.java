@@ -28,7 +28,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @DisplayName("VoterRepository — Integración con PostgreSQL real")
 class VoterRepositoryTest {
